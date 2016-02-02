@@ -32,7 +32,11 @@ void getJoysticks(void *ignore)
 		main.rightBumper.axisValue 			= 	joystickGetDigitalAxis(1,6);
 		main.leftBumper.axisValue 			= 	joystickGetDigitalAxis(1,5);
 		main.rightDpad.axisValue 			= 	joystickGetDigitalAxis(1,8);
-		main.leftDpad.axisValue 			= 	joystickGetDigitalAxis(1,7);
+		main.leftDpad.axisValue 			= 	joystickGetDigitalAxis(2,7);
+		partner.rightBumper.axisValue 			= 	joystickGetDigitalAxis(2,6);
+		partner.leftBumper.axisValue 		= 	joystickGetDigitalAxis(2,5);
+		partner.rightDpad.axisValue 		= 	joystickGetDigitalAxis(2,8);
+		partner.leftDpad.axisValue 			= 	joystickGetDigitalAxis(2,7);
 		taskDelayUntil(&timeStart,20);
 	}
 }
@@ -176,8 +180,15 @@ void velocityPIDControl(void *parameters)
 
 			foreach(int *motor, params.outputs)
 			{
-				motorSet(abs(*motor), output*(*motor/abs(*motor)));
+				if(params.target() == 0)
+				{
+					motorSet(abs(*motor),0);
+					output = 0;
+				}
+				else
+					motorSet(abs(*motor), output*(*motor/abs(*motor)));
 			}
+
 			taskDelayUntil(&loopTime,MOTOR_REFRESH_TIME);
 		}
 	}
