@@ -53,23 +53,19 @@
 
 void autonomous() {
 	taskResume(velocity_task);
-	taskResume(leftFlywheel_task);
-	taskResume(rightFlywheel_task);
-	leftFlywheel.variables.power =29.5;
-	rightFlywheel.variables.power =29.5;
-	rightFlywheel.variables.powerRaw = ((rightFlywheel.variables.power)/3.0)*(12/FLYWHEEL_CIRCUMFERENCE)*360;
-	leftFlywheel.variables.powerRaw = ((leftFlywheel.variables.power)/3.0)*(12/FLYWHEEL_CIRCUMFERENCE)*360;
+	taskResume(shooter_task);
+	taskResume(shooter_task);
+	shooter.variables.power =29.5;
+	shooter.variables.powerRaw = ((shooter.variables.power)/3.0)*(12/FLYWHEEL_CIRCUMFERENCE)*360;
 	delay(5000);
 	motorSet(LOWER_INTAKE,127);
 	motorSet(UPPER_INTAKE,-127);
 	delay(8000);
 	taskSuspend(velocity_task);
 	taskSuspend(leftFlywheel_task);
-	taskSuspend(rightFlywheel_task);
-	leftFlywheel.variables.power =0;
-	rightFlywheel.variables.power =0;
-	rightFlywheel.variables.powerRaw =0;
-	leftFlywheel.variables.powerRaw = 0;
+	taskSuspend(shooter_task);
+	shooter.variables.power =0;
+	shooter.variables.powerRaw =0;
 
 
 }

@@ -21,23 +21,41 @@ void flywheelInit(flywheel aFlywheel,int (*input)(),
 	aFlywheel.parameters.kI = kI;
 	aFlywheel.parameters.kD = kD;
 }
+float ewma = 0;
+float ewmaTPS = 0;
 
+float factor = .5;
+
+float prevTPS[5] = {0, 0, 0, 0, 0};
+
+float prev[5] = {0, 0, 0, 0, 0};
 void velocityReader(void *ignore)
 {
-	encoderReset(leftFlywheelEncoder);
-	encoderReset(rightFlywheelEncoder);
+	encoderReset(shooterEncoder);
 	unsigned long startTime = 0;
 	while(true)
 	{
 		startTime = millis();
-		leftFlywheel.variables.velocityRaw = -encoderGet(leftFlywheelEncoder)*1000/20;
-		rightFlywheel.variables.velocityRaw = -encoderGet(rightFlywheelEncoder)*1000/20;
-		leftFlywheel.variables.velocity = (leftFlywheel.variables.velocityRaw*(FLYWHEEL_CIRCUMFERENCE/12)/360.0)*3;
-		rightFlywheel.variables.velocity = (rightFlywheel.variables.velocityRaw*(FLYWHEEL_CIRCUMFERENCE/12)/360.0)*3;
-		encoderReset(leftFlywheelEncoder);
-		encoderReset(rightFlywheelEncoder);
+		shooter.variables.velocityRaw = encoderGet(shooterEncoder)*1000/20;
+		shooter.variables.velocity = (shooter.variables.velocityRaw*(FLYWHEEL_CIRCUMFERENCE/12)/360.0);
+		encoderReset(shooterEncoder);
+		prevTPS[4] = prevTPS[3];
+		prevTPS[3] = prevTPS[2];
+		prevTPS[2] = prevTPS[1];
+		prevTPS[1] = prevTPS[0];
+		prevTPS[0] = shooter.variables.velocityRaw;
 
-		printf("%f\n\r",leftFlywheel.variables.velocity);
+		prev[4] = prev[3];
+		prev[3] = prev[2];
+		prev[2] = prev[1];
+		prev[1] = prev[0];
+		prev[0] = shooter.variables.velocity;
+
+		ewmaTPS = (prevTPS[0] + (prevTPS[1]*pow(factor,1)) + (prevTPS[2]*pow(factor,2)) + (prevTPS[3]*pow(factor,3)) + (prevTPS[4]*pow(factor,4)))/
+				(1+ pow(factor,1) + pow(factor,2) + pow(factor,3) + pow(factor,4));
+		ewma = (prev[0] + (prev[1]*pow(factor,1)) + (prev[2]*pow(factor,2)) + (prev[3]*pow(factor,3)) + (prev[4]*pow(factor,4)))/
+				(1+ pow(factor,1) + pow(factor,2) + pow(factor,3) + pow(factor,4));
+
 		taskDelayUntil(&startTime, MOTOR_REFRESH_TIME);
 	}
 }
@@ -53,64 +71,55 @@ void powerListener(void *params)
 		{
 			if(partner.rightDpad.axisValue == JOY_UP)
 			{
-				leftFlywheel.variables.power++;
-				rightFlywheel.variables.power++;
+				shooter.variables.power++;
 				taskDelay(100);
 			}
 			else if(partner.rightDpad.axisValue == JOY_DOWN)
 			{
-				leftFlywheel.variables.power--;
-				rightFlywheel.variables.power--;
+				shooter.variables.power--;
 				taskDelay(100);
 			}
 			else if(partner.rightDpad.axisValue == JOY_RIGHT)
 			{
-				leftFlywheel.variables.power += .5;
-				rightFlywheel.variables.power += .5;
+				shooter.variables.power += .5;
 				taskDelay(100);
 			}
 			else if(partner.rightDpad.axisValue == JOY_LEFT)
 			{
-				leftFlywheel.variables.power -= .5;
-				rightFlywheel.variables.power -= .5;
+				shooter.variables.power -= .5;
 				taskDelay(100);
 			}
 			else if(partner.leftDpad.axisValue == JOY_UP)
 			{
-				leftFlywheel.variables.power =29.5;
-				rightFlywheel.variables.power =29.5;
+				shooter.variables.power =40;
 				taskDelay(100);
 			}
 			else if(partner.leftDpad.axisValue == JOY_RIGHT)
 			{
-				leftFlywheel.variables.power =22;
-				rightFlywheel.variables.power =22;
+				shooter.variables.power =30;
 				taskDelay(100);
 			}
 			else if(partner.leftDpad.axisValue == JOY_LEFT)
 			{
-				leftFlywheel.variables.power =20;
-				rightFlywheel.variables.power =20;
+				shooter.variables.power =20;
 				taskDelay(100);
 			}
 			else if(partner.leftDpad.axisValue == JOY_DOWN)
 			{
-				leftFlywheel.variables.power =0;
-				rightFlywheel.variables.power =0;
+				shooter.variables.power =0;
 				taskDelay(100);
 			}
-			if(leftFlywheel.variables.power<0)
+			if(shooter.variables.power<0)
 			{
-				leftFlywheel.variables.power =0;
-				rightFlywheel.variables.power =0;
+				shooter.variables.power =0;
 				taskDelay(100);
 			}
 
-			rightFlywheel.variables.powerRaw = ((rightFlywheel.variables.power)/3.0)*(12/FLYWHEEL_CIRCUMFERENCE)*360;
-			leftFlywheel.variables.powerRaw = ((leftFlywheel.variables.power)/3.0)*(12/FLYWHEEL_CIRCUMFERENCE)*360;
+			shooter.variables.powerRaw = ((shooter.variables.power))*(12/FLYWHEEL_CIRCUMFERENCE)*360;
 
-			lcdPrint(uart1,1,"%f",leftFlywheel.variables.power);
-			//printf("%f /n /r", leftFlywheel.variables.power);
+			lcdPrint(uart1,1,"%f",shooter.variables.power);
+			lcdPrint(uart1,2,"%f",shooter.variables.velocity);
+			printf("%f \n \r", ewma);
 			taskDelay(20);
 
 		}
@@ -119,10 +128,32 @@ void powerListener(void *params)
 
 void driveControl(void *params)
 {
+	int rightBack;
+	int leftBack;
+	int rightFront;
+	int leftFront;
+	int rightCenter;
+	int leftCenter;
 	while(true)
 	{
-		motorSet(R,-main.rightVertical.axisValue);
-		motorSet(L,main.leftVertical.axisValue);
+		/*rightBack = main.leftVertical.axisValue + main.leftHorizontal.axisValue - main.rightHorizontal.axisValue;
+		leftBack = -main.leftVertical.axisValue + main.leftHorizontal.axisValue - main.rightHorizontal.axisValue;
+		rightFront = main.leftVertical.axisValue - main.leftHorizontal.axisValue - main.rightHorizontal.axisValue;
+		leftFront = main.leftVertical.axisValue + main.leftHorizontal.axisValue + main.rightHorizontal.axisValue;
+		rightCenter = main.leftVertical.axisValue;
+		leftCenter = main.leftVertical.axisValue;
+		motorSet(RB, rightBack);
+		motorSet(LB, leftBack);
+		motorSet(RF, rightFront);
+		motorSet(LF, -leftFront);
+		motorSet(RC, rightCenter);
+		motorSet(LC, -leftCenter);*/
+		motorSet(RB, main.rightVertical.axisValue);
+		motorSet(RC, main.rightVertical.axisValue);
+		motorSet(RF, main.rightVertical.axisValue);
+		motorSet(LB, -main.leftVertical.axisValue);
+		motorSet(LC, -main.leftVertical.axisValue);
+		motorSet(LF, -main.leftVertical.axisValue);
 
 		if(partner.rightBumper.axisValue == JOY_UP)
 		{
@@ -148,29 +179,26 @@ void driveControl(void *params)
 		{
 			motorSet(UPPER_INTAKE, 0);
 		}
-		motorSet(LIFT, partner.rightVertical.axisValue);
-		motorSet(LIFT_2, partner.rightVertical.axisValue);
+
 
 
 		taskDelay(20);
 	}
 }
 
-int getRPower()
+int getPower()
 {
-	return (int)(rightFlywheel.variables.powerRaw);
+	return (int)(shooter.variables.powerRaw);
 }
 
-int getLPower()
+
+int getVel()
 {
-	return (int)(leftFlywheel.variables.powerRaw);
+	return (int)(shooter.variables.velocityRaw);
 }
 
-int getRVel()
+int getEWMA()
 {
-	return (int)(rightFlywheel.variables.velocityRaw);
+	return (int)(ewmaTPS);
 }
-int getLVel()
-{
-	return (int)(leftFlywheel.variables.velocityRaw);
-}
+

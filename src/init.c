@@ -59,32 +59,27 @@ void initializeIO() {
  * will not start. An autonomous mode selection menu like the pre_auton() in other environments
  * can be implemented in this task if desired.
  */
-int leftOutputs[4] = {2, 9, 0, 0};
-int rightOutputs[4] = {1, 10, 0, 0};
+int outputs[4] = {1, 10, 0, 0};
 
 
 
 void initialize() {
-	flywheelInit(leftFlywheel,getLVel, getLPower, 0, 0, 0, leftOutputs);
-	flywheelInit(rightFlywheel,getLVel, getRPower, 0, 0, 0, rightOutputs);
+	flywheelInit(shooter,getEWMA, getPower, 0, 0, 0, outputs);
 
-	leftFlywheelEncoder = encoderInit(1,2,false);
-	rightFlywheelEncoder = encoderInit(3,4,false);
+	shooterEncoder = encoderInit(1,2,false);
 
-	pidParams left = {NULL,getLVel,getLPower,-1,.005,0,.12,{-2,-9,0,0}};
-	pidParams right ={NULL,getRVel,getRPower,-1,.005,0,.12,{-1,-10,0,0}};
+	pidParams shooter = {NULL,getVel,getPower,-1,.009,0,0.095,{-7,6,0,0}};
 
 	lcdInit(uart1);
 
-	leftFlywheel_task = taskCreate(velocityPIDControl, TASK_DEFAULT_STACK_SIZE, &left, TASK_PRIORITY_DEFAULT);
-	rightFlywheel_task = taskCreate(velocityPIDControl, TASK_DEFAULT_STACK_SIZE, &right, TASK_PRIORITY_DEFAULT);
+	shooter_task = taskCreate(velocityPIDControl, TASK_DEFAULT_STACK_SIZE, &shooter, TASK_PRIORITY_DEFAULT);
 	velocity_task = taskCreate(velocityReader, TASK_DEFAULT_STACK_SIZE, NULL, TASK_PRIORITY_DEFAULT);
 	powerListener_task = taskCreate(powerListener, TASK_DEFAULT_STACK_SIZE, NULL, TASK_PRIORITY_DEFAULT);
 	joystick_task = taskCreate(getJoysticks, TASK_DEFAULT_STACK_SIZE, NULL, TASK_PRIORITY_DEFAULT);
 	drive_task = taskCreate(driveControl, TASK_DEFAULT_STACK_SIZE, NULL, TASK_PRIORITY_DEFAULT);
 	printf("debug");
 	taskSuspend(leftFlywheel_task);
-	taskSuspend(rightFlywheel_task);
+	taskSuspend(shooter_task);
 	taskSuspend(velocity_task);
 	taskSuspend(powerListener_task);
 	taskSuspend(joystick_task);
